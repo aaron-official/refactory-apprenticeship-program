@@ -49,8 +49,8 @@ class TestUtils(unittest.TestCase):
     def test_find_in_list_returns_false(self):
         self.assertFalse(find_in_list([1, 2, 3], 4))
 
-    def test_none_is_null(self):
-        self.assertIsNone(None)
+    def test_parse_json_none_on_null_string(self):
+        self.assertIsNone(parse_json("null"))
 
     def test_create_user_is_not_none(self):
         self.assertIsNotNone(create_user("Bob", 25))
