@@ -1,0 +1,25 @@
+
+keybord:
+  - Input data from a Keyboard
+IntelChip:
+    - process data using the intel chip
+InternalMemory:
+    - store data to internal memory
+    - retrieve data from internal memory
+Monitor:
+    - output data on a monitor
+# Controller
+Computer:
+  # Attributes: components are attached through composition
+  - color
+  - dimessions
+  - keyboard = new keybord()
+  - intelChip = new IntelChip()
+  - internalMemory - new InternalMemory()
+  - monitor = new Monitor()
+  # Methods
+  - input()
+  - process()
+  - store()
+  - retrieve()
+  - output()
