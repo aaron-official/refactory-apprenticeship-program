@@ -1,0 +1,53 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Pytest
+.cache/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+
+# MacOS
+.DS_Store
+
+# Logs
+*.log
+
+# Ignore compiled files
+*.pyc
+
+# Ignore coverage reports
+htmlcov/
+.coverage
+
+# Ignore pipenv files
+Pipfile.lock
+
+# Python version managers
+.python-version
+
+# Poetry lock files
+poetry.lock
+
+# Uv project lock
+uv.lock
+
+# Ignore other project-specific patterns
+
+# day folders
+day_*/__pycache__/
