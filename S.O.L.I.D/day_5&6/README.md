@@ -3,6 +3,10 @@
 This README explains every SOLID principle from scratch, shows the problem each one solves,
 and maps each principle directly to the code in `solid_principles.py`.
 
+Beyond SOLID, the code also demonstrates several **clean code patterns** that eliminate
+common code smells: **Python Descriptors**, **Parameter Objects**, **`__str__` delegation**,
+and a careful **LSP fix** in the `Laptop` class.
+
 ---
 
 ## Table of Contents
@@ -16,10 +20,12 @@ and maps each principle directly to the code in `solid_principles.py`.
 7. [L — Liskov Substitution Principle](#l--liskov-substitution-principle)
 8. [I — Interface Segregation Principle](#i--interface-segregation-principle)
 9. [D — Dependency Inversion Principle](#d--dependency-inversion-principle)
-10. [Bonus — Getters and Setters](#bonus--getters-and-setters)
-11. [How Everything Connects](#how-everything-connects)
-12. [Running the Code](#running-the-code)
-13. [Expected Output](#expected-output)
+10. [Clean Code Pattern — Descriptors](#clean-code-pattern--descriptors)
+11. [Clean Code Pattern — Parameter Objects](#clean-code-pattern--parameter-objects)
+12. [Clean Code Pattern — `__str__` Delegation](#clean-code-pattern--__str__-delegation)
+13. [How Everything Connects](#how-everything-connects)
+14. [Running the Code](#running-the-code)
+15. [Expected Output](#expected-output)
 
 ---
 
@@ -52,9 +58,12 @@ The project models a **computer system** in Python. It includes:
 - A `Laptop` subclass with a built-in keyboard and touchscreen
 - Separate classes for every hardware component (Keyboard, Monitor, etc.)
 - Abstract interfaces that define what each component type must do
+- **Descriptors** that replace repetitive getter/setter boilerplate
+- **Parameter Objects** (`@dataclass`) that bundle constructor arguments cleanly
+- **`__str__` methods** on each component so objects describe themselves
 
-This setup is deliberately designed so that every SOLID principle is visible and
-demonstrable through real code scenarios.
+This setup is deliberately designed so that every SOLID principle and every clean code
+pattern is visible and demonstrable through real code scenarios.
 
 ---
 
@@ -63,14 +72,18 @@ demonstrable through real code scenarios.
 ```
 solid_principles.py
 │
-├── INTERFACES (Abstractions)
+├── IMPORTS
+│   ├── abc (ABC, abstractmethod)     — for abstract interfaces
+│   └── dataclasses (dataclass)       — for parameter objects
+│
+├── 1. INTERFACES (Abstractions)
 │   ├── InputDevice         — anything that provides input
 │   ├── Processor           — anything that processes data
 │   ├── Storage             — anything that stores and retrieves data
 │   ├── OutputDevice        — anything that displays output
 │   └── Swappable           — anything that supports device swapping
 │
-├── CONCRETE CLASSES (Low-Level Modules)
+├── 2. CONCRETE CLASSES (Low-Level Modules)
 │   ├── Keyboard            — implements InputDevice
 │   ├── TouchScreen         — implements InputDevice + OutputDevice
 │   ├── IntelChip           — implements Processor
@@ -78,10 +91,25 @@ solid_principles.py
 │   ├── InternalMemory      — implements Storage
 │   └── Monitor             — implements OutputDevice
 │
-└── CONTROLLERS (High-Level Modules)
-    ├── Computer            — base class, orchestrates all components
-    ├── DesktopComputer     — extends Computer, adds device swapping
-    └── Laptop              — extends Computer, adds built-in keyboard + battery
+├── 3. DESCRIPTORS (Reusable Validation)
+│   ├── ValidatedDevice     — type-checks hardware components
+│   └── ValidatedString     — validates non-empty strings
+│
+├── 4. PARAMETER OBJECTS (Eliminate Long Parameter Lists)
+│   ├── ComputerSpecs       — bundles the 6 base Computer fields
+│   └── LaptopSpecs         — extends ComputerSpecs with laptop-specific fields
+│
+├── 5–7. CONTROLLERS (High-Level Modules)
+│   ├── Computer            — base class, orchestrates all components
+│   ├── DesktopComputer     — extends Computer, adds device swapping (Swappable)
+│   └── Laptop              — extends Computer, adds built-in keyboard + battery
+│
+└── 8. USAGE / DEMOS
+    ├── Desktop Computer Demo
+    ├── Laptop Demo
+    ├── Swappable Interface Check
+    ├── Getter / Setter Validation Demo
+    └── ISP Demo
 ```
 
 ---
@@ -254,10 +282,11 @@ class AMDChip(Processor):
         return f"amd_processed_{data}"
 ```
 
-Then pass it in:
+Then pass it in via the specs object:
 
 ```python
-my_computer = Computer(..., processor=AMDChip(), ...)
+my_specs = ComputerSpecs(..., processor=AMDChip(), ...)
+my_computer = Computer(my_specs)
 ```
 
 `Computer` is **closed for modification** — you never edit it. It is
@@ -303,42 +332,53 @@ upgrade_keyboard(my_laptop, Keyboard())    # ❌ CRASHES — LSP violated
 
 ### How Our Code Follows LSP
 
-The solution is to **never promise what you cannot deliver**.
+The solution has two parts:
 
-`swap_input_device` is placed in its own separate `Swappable` interface:
+**Part 1 — Separate the `Swappable` interface:**
+
+`swap_input_device` is placed in its own separate `Swappable` interface so only
+classes that genuinely support swapping implement it:
 
 ```python
 class Swappable(ABC):
     @abstractmethod
     def swap_input_device(self, new_device):
         pass
-```
 
-`DesktopComputer` implements it because desktops genuinely support peripheral swapping:
-
-```python
-class DesktopComputer(Computer):              # ✅ fulfils everything Computer promises
+class DesktopComputer(Computer, Swappable):   # ✅ implements Swappable
     def swap_input_device(self, new_device: InputDevice):
-        print(f"Swapping input device to {type(new_device).__name__}...")
         self.input_device = new_device
-        print("Input device swapped successfully.")
-```
 
-`Laptop` does **not** implement `swap_input_device` at all:
-
-```python
-class Laptop(Computer):                       # ✅ fulfils everything Computer promises
+class Laptop(Computer):                       # ✅ does NOT implement Swappable
     pass                                      # never claims it can swap — LSP safe
 ```
 
-You can verify this:
+You can verify the interface at runtime:
 
 ```python
-print(hasattr(my_laptop, 'swap_input_device'))   # False — never promised it
+isinstance(my_desktop, Swappable)   # True  — desktop CAN swap
+isinstance(my_laptop, Swappable)    # False — laptop CANNOT swap
 ```
 
-Anywhere a `Computer` is expected, both `DesktopComputer` and `Laptop` work
-perfectly — they fulfil every method `Computer` defines. LSP is never broken.
+**Part 2 — Override `input()` in `Laptop` (The Subtle LSP Fix):**
+
+The base `Computer.input()` returns data from `self.input_device`. But a Laptop has
+**two** input devices (built-in keyboard + touchscreen). If `Laptop` inherited
+`input()` unchanged, calling `my_laptop.input()` would silently only return the
+touchscreen data, completely ignoring the keyboard — **unexpected behaviour** for
+any code expecting a `Computer`.
+
+The fix is to override `input()` so it honours the contract fully:
+
+```python
+class Laptop(Computer):
+    def input(self):
+        """Fulfills the base class contract by returning the laptop's combined input."""
+        return self.combined_input()
+```
+
+Now `my_laptop.input()` returns **all** input (keyboard + touch), which is what a
+caller would reasonably expect from any `Computer`.
 
 ### The Substitution Test
 
@@ -354,7 +394,7 @@ def run_computer(computer: Computer):
     computer.output(retrieved)
 
 run_computer(my_desktop)   # ✅ works — DesktopComputer substitutes cleanly
-run_computer(my_laptop)    # ✅ works — Laptop substitutes cleanly
+run_computer(my_laptop)    # ✅ works — Laptop substitutes cleanly (returns combined input)
 ```
 
 Both pass the test. LSP is satisfied.
@@ -436,7 +476,7 @@ class Keyboard(InputDevice):                   # only InputDevice — that is al
 class Monitor(OutputDevice):                   # only OutputDevice — that is all it is
 class IntelChip(Processor):                    # only Processor — that is all it is
 class InternalMemory(Storage):                 # only Storage — that is all it is
-class DesktopComputer(Computer):               # Computer + Swappable (can swap devices)
+class DesktopComputer(Computer, Swappable):    # Computer + Swappable (can swap devices)
 class Laptop(Computer):                        # Computer only (cannot swap — not Swappable)
 ```
 
@@ -478,10 +518,11 @@ adds its own separate `built_in_keyboard` attribute:
 
 ```python
 class Laptop(Computer):
-    def __init__(self, ..., built_in_keyboard: InputDevice,
-                 input_device: InputDevice, ...):
-        super().__init__(..., input_device=input_device, ...)
-        self.built_in_keyboard = built_in_keyboard   # laptop-only, fixed
+    built_in_keyboard = ValidatedDevice(InputDevice, "built_in_keyboard")
+
+    def __init__(self, specs: LaptopSpecs):
+        super().__init__(specs)
+        self.built_in_keyboard = specs.built_in_keyboard   # laptop-only, fixed
 ```
 
 Both are independently accessible:
@@ -535,18 +576,27 @@ The high-level module is tightly coupled to specific low-level details.
 
 ### How Our Code Follows DIP
 
-`Computer.__init__` accepts **abstract types**, not concrete ones:
+`Computer.__init__` accepts a `ComputerSpecs` object whose fields are typed as
+**abstract types**, not concrete ones:
 
 ```python
+@dataclass
+class ComputerSpecs:
+    color: str
+    dimensions: str
+    input_device: InputDevice    # abstract — accepts ANY InputDevice
+    processor: Processor         # abstract — accepts ANY Processor
+    storage: Storage             # abstract — accepts ANY Storage
+    output_device: OutputDevice  # abstract — accepts ANY OutputDevice
+
 class Computer:
-    def __init__(self, color: str, dimensions: str,
-                 input_device: InputDevice,    # abstract — accepts ANY InputDevice
-                 processor: Processor,         # abstract — accepts ANY Processor
-                 storage: Storage,             # abstract — accepts ANY Storage
-                 output_device: OutputDevice): # abstract — accepts ANY OutputDevice
+    def __init__(self, specs: ComputerSpecs):
+        self.input_device = specs.input_device
+        self.processor = specs.processor
+        ...
 ```
 
-The concrete objects are built **outside** and then **passed in**:
+The concrete objects are built **outside** and then **passed in** via the specs:
 
 ```python
 # Build the specific parts
@@ -555,15 +605,17 @@ my_chip     = IntelChip()
 my_memory   = InternalMemory()
 my_monitor  = Monitor()
 
-# Inject them into Computer
-my_computer = Computer(
+# Bundle into a specs object and inject
+desktop_specs = ComputerSpecs(
     color="Black",
-    dimensions="Tower",
-    input_device=my_keyboard,    # injected from outside
-    processor=my_chip,           # injected from outside
-    storage=my_memory,           # injected from outside
-    output_device=my_monitor     # injected from outside
+    dimensions="23-inch",
+    input_device=my_keyboard,
+    processor=my_chip,
+    storage=my_memory,
+    output_device=my_monitor
 )
+
+my_desktop = DesktopComputer(desktop_specs)
 ```
 
 This pattern is called **Dependency Injection** — the computer does not build its
@@ -573,17 +625,17 @@ own parts. It receives them fully assembled from outside.
 
 ```python
 # Swap the chip — no changes to Computer needed
-my_computer = Computer(..., processor=ARMChip(), ...)
+specs = ComputerSpecs(..., processor=ARMChip(), ...)
 
 # Use a touchscreen instead of a monitor — no changes to Computer needed
-my_computer = Computer(..., output_device=TouchScreen(), ...)
+specs = ComputerSpecs(..., output_device=TouchScreen(), ...)
 
 # Use a fake keyboard for testing — no changes to Computer needed
 class FakeKeyboard(InputDevice):
     def input_data(self):
         return "test_data"
 
-test_computer = Computer(..., input_device=FakeKeyboard(), ...)
+specs = ComputerSpecs(..., input_device=FakeKeyboard(), ...)
 ```
 
 `Computer` never knows or cares which specific class it receives — only that
@@ -591,96 +643,289 @@ it honours the abstract interface.
 
 ---
 
-## Bonus — Getters and Setters
+## Clean Code Pattern — Descriptors
 
-### The Problem Without Them
+### The Problem: Boilerplate Getter/Setter Code
 
-Without getters and setters, Python attributes are fully public:
-
-```python
-my_computer.color = 12345         # ❌ silently corrupts the object
-my_computer.input_device = "hi"   # ❌ replaces a device with a plain string
-```
-
-Python will not complain. The object just ends up in a broken state.
-
-### The Solution — Python's `@property`
-
-Python uses the `@property` decorator to create getters and setters that
-**look like normal attribute access** but actually run validation code behind the scenes.
+Without descriptors, protecting every attribute requires ~10 lines of repetitive
+`@property` and `@setter` code per attribute:
 
 ```python
+# ❌ ~50 lines of nearly identical getter/setter blocks
 class Computer:
-    # Getter — controls how you READ the value
     @property
     def color(self):
         return self._color
 
-    # Setter — controls how you WRITE the value
     @color.setter
     def color(self, value):
         if not isinstance(value, str):
             raise TypeError("color must be a string")
         if len(value.strip()) == 0:
             raise ValueError("color cannot be empty")
-        self._color = value    # only stored if it passes validation
+        self._color = value
+
+    @property
+    def dimensions(self):           # same pattern repeated again...
+        return self._dimensions
+
+    @dimensions.setter
+    def dimensions(self, value):    # ...and again for every attribute
+        if not isinstance(value, str):
+            raise TypeError("dimensions must be a string")
+        ...
 ```
 
-### The Underscore Convention
+This bloats the class with ~50 lines of nearly identical code. The actual business
+logic gets buried under boilerplate.
 
-Notice `self._color` instead of `self.color`. The `_` prefix is a Python
-convention meaning "private — do not access directly from outside the class":
+### The Solution: Python Descriptors
+
+A descriptor is a class that defines `__get__` and `__set__` methods. When you use
+it as a **class variable**, Python automatically routes attribute access through
+the descriptor's methods.
+
+We created two reusable descriptors:
+
+**`ValidatedDevice`** — ensures a value is an instance of a specific abstract type:
 
 ```python
-my_computer._color    # ❌ technically possible but breaks the convention
-my_computer.color     # ✅ correct — routes through the getter
+class ValidatedDevice:
+    def __init__(self, expected_type, name):
+        self.expected_type = expected_type
+        self.name = f"_{name}"            # stores as _input_device, _processor, etc.
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self                   # when accessed from the class itself
+        return getattr(obj, self.name)    # returns the stored value
+
+    def __set__(self, obj, value):
+        if not isinstance(value, self.expected_type):
+            raise TypeError(f"Must be an instance of {self.expected_type.__name__}")
+        setattr(obj, self.name, value)    # stores only if valid
 ```
 
-### How It Looks in Use
-
-Even though getters and setters are methods, Python makes them look like
-plain attribute access — no brackets needed:
+**`ValidatedString`** — ensures a value is a non-empty string:
 
 ```python
-print(my_computer.color)     # triggers getter silently
-my_computer.color = "White"  # triggers setter silently, runs validation
+class ValidatedString:
+    def __init__(self, name):
+        self.name = f"_{name}"
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        return getattr(obj, self.name)
+
+    def __set__(self, obj, value):
+        if not isinstance(value, str):
+            raise TypeError(f"{self.name[1:]} must be a string")
+        if len(value.strip()) == 0:
+            raise ValueError(f"{self.name[1:]} cannot be empty")
+        setattr(obj, self.name, value)
 ```
 
-### Validation in Action
+### How They Are Used
+
+Descriptors are declared as **class-level variables** in `Computer`:
 
 ```python
-# Wrong type
-my_computer.color = 999
-# ❌ TypeError: color must be a string
+class Computer:
+    # 6 lines replace ~50 lines of property/setter boilerplate!
+    color = ValidatedString("color")
+    dimensions = ValidatedString("dimensions")
+    input_device = ValidatedDevice(InputDevice, "input_device")
+    processor = ValidatedDevice(Processor, "processor")
+    storage = ValidatedDevice(Storage, "storage")
+    output_device = ValidatedDevice(OutputDevice, "output_device")
 
-# Empty string
-my_computer.color = "   "
-# ❌ ValueError: color cannot be empty
-
-# Wrong device type
-my_computer.input_device = "not a device"
-# ❌ TypeError: input_device must be an instance of InputDevice
-
-# All correct
-my_computer.color = "White"  # ✅ passes
+    def __init__(self, specs: ComputerSpecs):
+        # Each assignment triggers the descriptor's __set__ → validation runs automatically
+        self.color = specs.color
+        self.input_device = specs.input_device
+        ...
 ```
 
-The device setters also **enforce the abstractions** — connecting DIP and
-encapsulation together:
+And in `Laptop`, the same pattern validates the additional attribute:
 
 ```python
-@input_device.setter
-def input_device(self, device):
-    if not isinstance(device, InputDevice):    # enforces the abstraction
-        raise TypeError("input_device must be an instance of InputDevice")
-    self._input_device = device
+class Laptop(Computer):
+    built_in_keyboard = ValidatedDevice(InputDevice, "built_in_keyboard")
 ```
+
+### How It Feels in Use
+
+Even though descriptors are classes with `__get__` and `__set__`, Python makes them
+feel like ordinary attributes — no brackets needed:
+
+```python
+print(my_desktop.color)        # triggers ValidatedString.__get__ silently
+my_desktop.color = "White"     # triggers ValidatedString.__set__ → validates → stores
+my_desktop.color = 999         # ❌ TypeError: color must be a string
+my_desktop.color = "   "       # ❌ ValueError: color cannot be empty
+
+my_desktop.input_device = "x"  # ❌ TypeError: Must be an instance of InputDevice
+```
+
+### Why Descriptors Matter
+
+| Without Descriptors          | With Descriptors                   |
+|------------------------------|------------------------------------|
+| ~10 lines per attribute      | 1 line per attribute               |
+| Copy-paste validation logic  | Write validation logic **once**    |
+| Easy to forget in new attrs  | Hard to forget — just add one line |
+| Business logic buried        | Clean, focused `__init__`          |
+
+---
+
+## Clean Code Pattern — Parameter Objects
+
+### The Problem: Long Parameter Lists
+
+The original `Computer.__init__` took **6 positional arguments**, and `Laptop.__init__`
+took **8**. Passing this many arguments is error-prone — you could accidentally swap
+the positions of `processor` and `storage` without Python complaining:
+
+```python
+# ❌ Easy to accidentally swap arguments
+my_desktop = Computer("Black", "23-inch", keyboard, chip, memory, monitor)
+#                                                   ^^^^  ^^^^^^
+#                                    Did I swap processor and storage? Who knows!
+```
+
+### The Solution: `@dataclass` as a Parameter Object
+
+Python's `@dataclass` decorator (from the `dataclasses` module) automatically
+generates `__init__`, `__repr__`, and other methods for you. We use it to bundle
+all constructor arguments into a single, named object:
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class ComputerSpecs:
+    """Bundles the 6 constructor args for Computer into one clean object."""
+    color: str
+    dimensions: str
+    input_device: InputDevice
+    processor: Processor
+    storage: Storage
+    output_device: OutputDevice
+```
+
+For `Laptop`, we extend it with laptop-specific fields:
+
+```python
+@dataclass
+class LaptopSpecs(ComputerSpecs):
+    """Extends ComputerSpecs with laptop-specific fields."""
+    built_in_keyboard: InputDevice = None
+    battery_life: int = 0
+```
+
+### How They Are Used
+
+Now constructors accept a **single specs object** instead of many positional args:
+
+```python
+class Computer:
+    def __init__(self, specs: ComputerSpecs):
+        self.color = specs.color
+        self.dimensions = specs.dimensions
+        self.input_device = specs.input_device
+        ...
+
+class Laptop(Computer):
+    def __init__(self, specs: LaptopSpecs):
+        super().__init__(specs)                         # base fields go up to Computer
+        self.built_in_keyboard = specs.built_in_keyboard
+        self.battery_life = specs.battery_life
+```
+
+And callers use **named keyword arguments**, making it impossible to accidentally
+swap fields:
+
+```python
+# ✅ Named fields — you cannot accidentally swap processor and storage
+desktop_specs = ComputerSpecs(
+    color="Black",
+    dimensions="23-inch",
+    input_device=desktop_keyboard,
+    processor=desktop_chip,          # clearly labeled
+    storage=desktop_memory,          # clearly labeled
+    output_device=desktop_monitor
+)
+
+my_desktop = DesktopComputer(desktop_specs)
+```
+
+### Why Parameter Objects Matter
+
+| Without Parameter Object         | With Parameter Object              |
+|----------------------------------|------------------------------------|
+| 6–8 positional arguments         | 1 named specs object               |
+| Easy to mix up argument order    | Named fields prevent mistakes      |
+| Constructor signature is noisy   | Constructor is clean and simple    |
+| Hard to extend (add more args)   | Easy to extend (add field to dataclass) |
+
+---
+
+## Clean Code Pattern — `__str__` Delegation
+
+### The Problem: Tightly Coupled String Representations
+
+The original `__str__` method used `type(self._processor).__name__` to display
+component names. This creates tight coupling — if you later wrap a component
+in a proxy or decorator, the `__str__` output would break or show confusing
+class names like `ProcessorProxy` instead of `IntelChip`.
+
+```python
+# ❌ Tightly coupled to exact class names
+def __str__(self):
+    return f"processor={type(self._processor).__name__}"
+    # Would break if _processor is wrapped in a proxy or decorator
+```
+
+### The Solution: Let Components Describe Themselves
+
+Every concrete class now has its own `__str__` method:
+
+```python
+class Keyboard(InputDevice):
+    def __str__(self):
+        return "Keyboard"
+
+class IntelChip(Processor):
+    def __str__(self):
+        return "IntelChip"
+
+class Monitor(OutputDevice):
+    def __str__(self):
+        return "Monitor"
+```
+
+And `Computer.__str__` simply calls `str()` on each component (which Python does
+automatically when you use an object inside an f-string):
+
+```python
+class Computer:
+    def __str__(self):
+        return (f"Computer(color={self.color}, dimensions={self.dimensions}, "
+                f"input={self.input_device}, "        # calls Keyboard.__str__()
+                f"processor={self.processor}, "       # calls IntelChip.__str__()
+                f"storage={self.storage}, "            # calls InternalMemory.__str__()
+                f"output={self.output_device})")       # calls Monitor.__str__()
+```
+
+Now if a component is wrapped in a proxy or decorator, it can override `__str__`
+to return something sensible — and `Computer` never needs to change.
 
 ---
 
 ## How Everything Connects
 
-Here is how all five principles and getters/setters work together in one view:
+Here is how all five SOLID principles and all three clean code patterns work together:
 
 ```
 INTERFACES (ABC)
@@ -694,17 +939,31 @@ CONCRETE CLASSES
     │   SRP — each class has exactly one job
     │   OCP — new components can be added without touching existing code
     │   LSP — each class fully honours its interface contract
+    │   __str__ — each component describes itself (decoupled)
+    │
+    ▼
+DESCRIPTORS
+    │   ValidatedDevice, ValidatedString
+    │   Replace ~50 lines of repetitive getter/setter boilerplate
+    │   Write validation logic once, reuse everywhere
+    │
+    ▼
+PARAMETER OBJECTS
+    │   ComputerSpecs, LaptopSpecs (@dataclass)
+    │   Bundle constructor args into named objects
+    │   Prevent accidental argument swaps
     │
     ▼
 COMPUTER (High-Level)
-    │   Accepts abstract types in __init__ — never hardcodes specific classes
+    │   Accepts ComputerSpecs in __init__ — never hardcodes specific classes
     │   DIP — depends on InputDevice, Processor, etc., not on Keyboard, IntelChip
-    │   Getters/Setters — validates and protects every attribute
+    │   Descriptors validate every field on assignment
     │
     ▼
 DESKTOPCOMPUTER / LAPTOP
     │   Extend Computer cleanly — add only what genuinely applies
     │   LSP — both substitute for Computer without breaking anything
+    │   LSP — Laptop overrides input() to honour the contract fully
     │   ISP — Laptop never implements Swappable (it cannot swap devices)
 ```
 
@@ -715,11 +974,11 @@ DESKTOPCOMPUTER / LAPTOP
 Make sure you have Python 3 installed, then run:
 
 ```bash
-python3 solid_principles.py
+python solid_principles.py
 ```
 
-No external libraries required — everything used (`abc`) is part of Python's
-standard library.
+No external libraries required — everything used (`abc`, `dataclasses`) is part of
+Python's standard library.
 
 ---
 
@@ -729,7 +988,7 @@ standard library.
 =======================================================
         DESKTOP COMPUTER DEMO
 =======================================================
-Computer(color=Black, dimensions=Tower, input=Keyboard, processor=IntelChip, storage=InternalMemory, output=Monitor)
+Computer(color=Black, dimensions=23-inch, input=Keyboard, processor=IntelChip, storage=InternalMemory, output=Monitor)
 
 Receiving input from Keyboard...
 IntelChip processing: keyboard_raw_data
@@ -741,7 +1000,7 @@ Monitor displaying: processed_keyboard_raw_data
 Swapping input device to TouchScreen...
 Input device swapped successfully.
 Receiving touch input from TouchScreen...
-Monitor displaying: touch_raw_data
+TouchScreen displaying: touch_raw_data
 
 =======================================================
         LAPTOP DEMO
@@ -754,21 +1013,37 @@ Receiving touch input from TouchScreen...
 
   [KEYBOARD]
 ARMChip processing: keyboard_raw_data
-...
+Storing data to Internal Memory...
+Retrieving data from Internal Memory...
+TouchScreen displaying: arm_processed_keyboard_raw_data
 
   [TOUCH]
 ARMChip processing: touch_raw_data
-...
+Storing data to Internal Memory...
+Retrieving data from Internal Memory...
+TouchScreen displaying: arm_processed_touch_raw_data
 
 --- Laptop has no swap_input_device ---
 hasattr swap_input_device: False
 
+--- Swappable interface check ---
+DesktopComputer is Swappable: True
+Laptop is Swappable:          False
+
 =======================================================
         GETTER / SETTER VALIDATION DEMO
 =======================================================
+
+--- Trying to set color to an integer ---
 TypeError caught: color must be a string
-TypeError caught: input_device must be an instance of InputDevice
+
+--- Trying to pass a string as input_device ---
+TypeError caught: Must be an instance of InputDevice
+
+--- Trying to set an empty color ---
 ValueError caught: color cannot be empty
+
+--- Valid color change ---
 Desktop color is now: White
 
 =======================================================
@@ -782,4 +1057,4 @@ TouchScreen is Storage:      False
 
 ---
 
-*Built for learning SOLID principles through a practical, real-world Python example.*
+*Built for learning SOLID principles and clean code patterns through a practical, real-world Python example.*
