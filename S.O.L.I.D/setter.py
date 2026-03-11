@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 
 
 # ==========================================
@@ -54,9 +53,6 @@ class Keyboard(InputDevice):
         print("Receiving input from Keyboard...")
         return "keyboard_raw_data"
 
-    def __str__(self):
-        return "Keyboard"
-
 
 class TouchScreen(InputDevice, OutputDevice):
     """
@@ -71,9 +67,6 @@ class TouchScreen(InputDevice, OutputDevice):
     def output_data(self, data):
         print(f"TouchScreen displaying: {data}")
 
-    def __str__(self):
-        return "TouchScreen"
-
 
 class IntelChip(Processor):
     """Intel processor — only a Processor."""
@@ -81,18 +74,12 @@ class IntelChip(Processor):
         print(f"IntelChip processing: {data}")
         return f"processed_{data}"
 
-    def __str__(self):
-        return "IntelChip"
-
 
 class ARMChip(Processor):
     """ARM processor (used in laptops/mobile) — only a Processor."""
     def process_data(self, data):
         print(f"ARMChip processing: {data}")
         return f"arm_processed_{data}"
-
-    def __str__(self):
-        return "ARMChip"
 
 
 class InternalMemory(Storage):
@@ -108,107 +95,103 @@ class InternalMemory(Storage):
         print("Retrieving data from Internal Memory...")
         return self._memory
 
-    def __str__(self):
-        return "InternalMemory"
-
 
 class Monitor(OutputDevice):
     """External monitor — only an OutputDevice."""
     def output_data(self, data):
         print(f"Monitor displaying: {data}")
 
-    def __str__(self):
-        return "Monitor"
-
 
 # ==========================================
-# 3. DESCRIPTORS (Reusable Validation)
-#    Eliminates boilerplate property/setter code.
-#    Each descriptor encapsulates type-checking logic once.
-# ==========================================
-
-class ValidatedDevice:
-    """A descriptor that ensures an attribute is an instance of a specific type."""
-    def __init__(self, expected_type, name):
-        self.expected_type = expected_type
-        self.name = f"_{name}"
-
-    def __get__(self, obj, objtype=None):
-        if obj is None:
-            return self
-        return getattr(obj, self.name)
-
-    def __set__(self, obj, value):
-        if not isinstance(value, self.expected_type):
-            raise TypeError(f"Must be an instance of {self.expected_type.__name__}")
-        setattr(obj, self.name, value)
-
-
-class ValidatedString:
-    """A descriptor that ensures an attribute is a non-empty string."""
-    def __init__(self, name):
-        self.name = f"_{name}"
-
-    def __get__(self, obj, objtype=None):
-        if obj is None:
-            return self
-        return getattr(obj, self.name)
-
-    def __set__(self, obj, value):
-        if not isinstance(value, str):
-            raise TypeError(f"{self.name[1:]} must be a string")
-        if len(value.strip()) == 0:
-            raise ValueError(f"{self.name[1:]} cannot be empty")
-        setattr(obj, self.name, value)
-
-
-# ==========================================
-# 4. PARAMETER OBJECTS (Eliminate Long Parameter Lists)
-#    Using @dataclass to bundle constructor arguments.
-#    Prevents accidental argument swaps since all fields are named.
-# ==========================================
-
-@dataclass
-class ComputerSpecs:
-    """Bundles the 6 constructor args for Computer into one clean object."""
-    color: str
-    dimensions: str
-    input_device: InputDevice
-    processor: Processor
-    storage: Storage
-    output_device: OutputDevice
-
-
-@dataclass
-class LaptopSpecs(ComputerSpecs):
-    """Extends ComputerSpecs with laptop-specific fields."""
-    built_in_keyboard: InputDevice = None   # type: ignore
-    battery_life: int = 0
-
-
-# ==========================================
-# 5. BASE COMPUTER CLASS (High-Level Module)
+# 3. BASE COMPUTER CLASS (High-Level Module)
 #    DIP: depends on abstractions, not concrete classes
-#    Descriptors handle all validation cleanly at the class level
+#    Getters and Setters: control and validate all attribute access
 # ==========================================
 
 class Computer:
-    # Descriptors handle all the validation cleanly at the class level!
-    color = ValidatedString("color")
-    dimensions = ValidatedString("dimensions")
-    input_device = ValidatedDevice(InputDevice, "input_device")
-    processor = ValidatedDevice(Processor, "processor")
-    storage = ValidatedDevice(Storage, "storage")
-    output_device = ValidatedDevice(OutputDevice, "output_device")
+    def __init__(self, color: str, dimensions: str,
+                 input_device: InputDevice,
+                 processor: Processor,
+                 storage: Storage,
+                 output_device: OutputDevice):
 
-    def __init__(self, specs: ComputerSpecs):
-        # One clean parameter — descriptors still validate each field!
-        self.color = specs.color
-        self.dimensions = specs.dimensions
-        self.input_device = specs.input_device
-        self.processor = specs.processor
-        self.storage = specs.storage
-        self.output_device = specs.output_device
+        # Using setters here so validation runs even during __init__
+        self.color = color
+        self.dimensions = dimensions
+        self.input_device = input_device
+        self.processor = processor
+        self.storage = storage
+        self.output_device = output_device
+
+    # ---------- color ----------
+    @property
+    def color(self):
+        return self._color
+
+    @color.setter
+    def color(self, value):
+        if not isinstance(value, str):
+            raise TypeError("color must be a string")
+        if len(value.strip()) == 0:
+            raise ValueError("color cannot be empty")
+        self._color = value
+
+    # ---------- dimensions ----------
+    @property
+    def dimensions(self):
+        return self._dimensions
+
+    @dimensions.setter
+    def dimensions(self, value):
+        if not isinstance(value, str):
+            raise TypeError("dimensions must be a string")
+        if len(value.strip()) == 0:
+            raise ValueError("dimensions cannot be empty")
+        self._dimensions = value
+
+    # ---------- input_device ----------
+    @property
+    def input_device(self):
+        return self._input_device
+
+    @input_device.setter
+    def input_device(self, device):
+        if not isinstance(device, InputDevice):
+            raise TypeError("input_device must be an instance of InputDevice")
+        self._input_device = device
+
+    # ---------- processor ----------
+    @property
+    def processor(self):
+        return self._processor
+
+    @processor.setter
+    def processor(self, device):
+        if not isinstance(device, Processor):
+            raise TypeError("processor must be an instance of Processor")
+        self._processor = device
+
+    # ---------- storage ----------
+    @property
+    def storage(self):
+        return self._storage
+
+    @storage.setter
+    def storage(self, device):
+        if not isinstance(device, Storage):
+            raise TypeError("storage must be an instance of Storage")
+        self._storage = device
+
+    # ---------- output_device ----------
+    @property
+    def output_device(self):
+        return self._output_device
+
+    @output_device.setter
+    def output_device(self, device):
+        if not isinstance(device, OutputDevice):
+            raise TypeError("output_device must be an instance of OutputDevice")
+        self._output_device = device
 
     # ---------- Operations ----------
     def input(self):
@@ -227,33 +210,33 @@ class Computer:
         self.output_device.output_data(data)
 
     def __str__(self):
-        return (f"Computer(color={self.color}, dimensions={self.dimensions}, "
-                f"input={self.input_device}, "
-                f"processor={self.processor}, "
-                f"storage={self.storage}, "
-                f"output={self.output_device})")
+        return (f"Computer(color={self._color}, dimensions={self._dimensions}, "
+                f"input={type(self._input_device).__name__}, "
+                f"processor={type(self._processor).__name__}, "
+                f"storage={type(self._storage).__name__}, "
+                f"output={type(self._output_device).__name__})")
 
 
 # ==========================================
-# 6. DESKTOP COMPUTER (Extends Computer)
+# 4. DESKTOP COMPUTER (Extends Computer)
 #    LSP: DesktopComputer fully honours everything Computer promises
 #    It ADDS swap_input_device because desktops genuinely support it
 # ==========================================
 
-class DesktopComputer(Computer, Swappable):
+class DesktopComputer(Computer):
     """
     LSP DEMO: DesktopComputer can do everything Computer can.
     It also adds swap_input_device() — desktops support external keyboard swaps.
     Anywhere a Computer is expected, a DesktopComputer works perfectly.
     """
     def swap_input_device(self, new_device: InputDevice):
-        print(f"Swapping input device to {new_device}...")
-        self.input_device = new_device   # goes through the descriptor — validated
+        print(f"Swapping input device to {type(new_device).__name__}...")
+        self.input_device = new_device   # goes through the setter — validated
         print("Input device swapped successfully.")
 
 
 # ==========================================
-# 7. LAPTOP (Extends Computer)
+# 5. LAPTOP (Extends Computer)
 #    LSP: Laptop fully honours everything Computer promises.
 #    It does NOT have swap_input_device — laptops have built-in keyboards.
 #    By NOT adding a broken swap method, LSP is never violated.
@@ -275,13 +258,25 @@ class Laptop(Computer):
     - input_device: inherited from Computer (e.g. TouchScreen for touch input)
     Both are validated through their own getters and setters.
     """
-    # Descriptors for laptop-specific attributes
-    built_in_keyboard = ValidatedDevice(InputDevice, "built_in_keyboard")
+    def __init__(self, color, dimensions,
+                 built_in_keyboard: InputDevice,
+                 input_device: InputDevice,
+                 processor, storage, output_device, battery_life: int):
+        super().__init__(color, dimensions, input_device,
+                         processor, storage, output_device)
+        self.built_in_keyboard = built_in_keyboard  # fixed, laptop-only attribute
+        self.battery_life = battery_life
 
-    def __init__(self, specs: LaptopSpecs):
-        super().__init__(specs)  # passes the base ComputerSpecs fields up
-        self.built_in_keyboard = specs.built_in_keyboard  # validated by descriptor
-        self.battery_life = specs.battery_life
+    # ---------- built_in_keyboard ----------
+    @property
+    def built_in_keyboard(self):
+        return self._built_in_keyboard
+
+    @built_in_keyboard.setter
+    def built_in_keyboard(self, device):
+        if not isinstance(device, InputDevice):
+            raise TypeError("built_in_keyboard must be an instance of InputDevice")
+        self._built_in_keyboard = device
 
     # ---------- battery_life ----------
     @property
@@ -296,18 +291,13 @@ class Laptop(Computer):
             raise ValueError("battery_life must be a positive number")
         self._battery_life = value
 
-    # ---------- LSP FIX ----------
-    def input(self):
-        """Fulfills the base class contract by returning the laptop's combined input."""
-        return self.combined_input()
-
     def keyboard_input(self):
         """Explicitly use the built-in keyboard for input."""
-        return self.built_in_keyboard.input_data()
+        return self._built_in_keyboard.input_data()
 
     def touch_input(self):
         """Explicitly use the touch input device."""
-        return self.input_device.input_data()
+        return self._input_device.input_data()
 
     def combined_input(self):
         """
@@ -315,25 +305,38 @@ class Laptop(Computer):
         at the same time, and return them together as a dictionary.
         This reflects how a real laptop works — both inputs are always available.
         """
-        keyboard_data = self.built_in_keyboard.input_data()
-        touch_data    = self.input_device.input_data()
+        keyboard_data = self._built_in_keyboard.input_data()
+        touch_data    = self._input_device.input_data()
+        return {
+            "keyboard": keyboard_data,
+            "touch":    touch_data
+        }
+
+    def combined_input(self):
+        """
+        Collect input from BOTH the built-in keyboard and the touchscreen
+        at the same time and return them together as a dictionary.
+        This reflects how a real laptop works — both inputs are always available.
+        """
+        keyboard_data = self._built_in_keyboard.input_data()
+        touch_data    = self._input_device.input_data()
         return {
             "keyboard": keyboard_data,
             "touch":    touch_data
         }
 
     def __str__(self):
-        return (f"Laptop(color={self.color}, dimensions={self.dimensions}, "
+        return (f"Laptop(color={self._color}, dimensions={self._dimensions}, "
                 f"battery={self._battery_life}hrs, "
-                f"built_in_keyboard={self.built_in_keyboard}, "
-                f"touch_input={self.input_device}, "
-                f"processor={self.processor}, "
-                f"storage={self.storage}, "
-                f"output={self.output_device})")
+                f"built_in_keyboard={type(self._built_in_keyboard).__name__}, "
+                f"touch_input={type(self._input_device).__name__}, "
+                f"processor={type(self._processor).__name__}, "
+                f"storage={type(self._storage).__name__}, "
+                f"output={type(self._output_device).__name__})")
 
 
 # ==========================================
-# 8. USAGE
+# 6. USAGE
 # ==========================================
 
 print("=" * 55)
@@ -346,18 +349,15 @@ desktop_chip     = IntelChip()
 desktop_memory   = InternalMemory()
 desktop_monitor  = Monitor()
 
-# Bundle into a specs object — named fields prevent accidental swaps
-desktop_specs = ComputerSpecs(
+# Inject parts into DesktopComputer
+my_desktop = DesktopComputer(
     color="Black",
-    dimensions="23-inch",
+    dimensions="Tower",
     input_device=desktop_keyboard,
     processor=desktop_chip,
     storage=desktop_memory,
     output_device=desktop_monitor
 )
-
-# Inject specs into DesktopComputer
-my_desktop = DesktopComputer(desktop_specs)
 
 print(my_desktop)
 print()
@@ -387,20 +387,19 @@ laptop_screen = TouchScreen()
 laptop_chip   = ARMChip()
 laptop_memory = InternalMemory()
 
-laptop_specs = LaptopSpecs(
+my_laptop = Laptop(
     color="Silver",
     dimensions="14-inch",
+    built_in_keyboard=Keyboard(),   # fixed built-in keyboard
     input_device=laptop_screen,     # touchscreen as the second input
     processor=laptop_chip,
     storage=laptop_memory,
     output_device=laptop_screen,
-    built_in_keyboard=Keyboard(),   # fixed built-in keyboard
     battery_life=12
 )
 
-my_laptop = Laptop(laptop_specs)
-
 print(my_laptop)
+print()
 
 # Both inputs collected at once
 print("--- Combined input from Keyboard + TouchScreen ---")
@@ -419,11 +418,6 @@ for source, data in all_inputs.items():
 print()
 print("--- Laptop has no swap_input_device ---")
 print(f"hasattr swap_input_device: {hasattr(my_laptop, 'swap_input_device')}")
-
-print()
-print("--- Swappable interface check ---")
-print(f"DesktopComputer is Swappable: {isinstance(my_desktop, Swappable)}")  # True
-print(f"Laptop is Swappable:          {isinstance(my_laptop, Swappable)}")   # False
 
 
 print()
