@@ -1,66 +1,113 @@
-# ============================================================
-# Observer Pattern
-# ============================================================
-# The Observer Pattern defines a one-to-many dependency
-# between objects. When the subject (one) changes state,
-# all its registered observers (many) are notified automatically.
-#
-# Analogy: MTN Mobile Money account alerts.
-# When money enters or leaves the account (the subject),
-# all registered contacts — SMS, Email, App — automatically
-# receive a notification. They don't keep checking; they just
-# get alerted the moment something changes.
-#
-# Key Concepts:
-#   1. Subject: Maintains a list of observers and notifies them.
-#   2. Observers: React whenever the subject changes.
-# ============================================================
+from abc import ABC, abstractmethod
+from typing import List
+from dataclasses import dataclass
 
 
-# Subject (the MoMo Account)
+@dataclass(frozen=True)
+class OrderEvent:
+    order_id: str
+    product:  str
+    amount:   float
+    location: str
 
-class MoMoAccount:
+
+class IObserver(ABC):
+    @abstractmethod
+    def update(self, event: OrderEvent) -> None:
+        pass
+
+
+class IObservable(ABC):
+    @abstractmethod
+    def register(self, observer: IObserver) -> None:
+        pass
+
+    @abstractmethod
+    def unregister(self, observer: IObserver) -> None:
+        pass
+
+
+class INotifier(ABC):
+    @abstractmethod
+    def notify_all(self, event: OrderEvent) -> None:
+        pass
+
+
+class NotificationManager(IObservable, INotifier):
     def __init__(self):
-        self._observers = []
-        self._balance = 0
+        self._observers: List[IObserver] = []
 
-    def register(self, observer):
-        self._observers.append(observer)
+    def register(self, observer: IObserver) -> None:
+        if observer not in self._observers:
+            self._observers.append(observer)
 
-    def notify_all(self, message):
+    def unregister(self, observer: IObserver) -> None:
+        if observer in self._observers:
+            self._observers.remove(observer)
+
+    def notify_all(self, event: OrderEvent) -> None:
         for observer in self._observers:
-            observer.update(message)
-
-    def deposit(self, amount):
-        self._balance += amount
-        self.notify_all(f"Deposit of UGX {amount:,} received. New balance: UGX {self._balance:,}")
-
-    def withdraw(self, amount):
-        self._balance -= amount
-        self.notify_all(f"Withdrawal of UGX {amount:,} made. New balance: UGX {self._balance:,}")
+            observer.update(event)
 
 
-# Observers (the alert channels)
+class OrderTracker:
+    def __init__(self, notifier: INotifier):
+        self._notifier = notifier
+        self._orders: List[OrderEvent] = []
 
-class SMSAlert:
-    def update(self, message):
-        print(f"[SMS]   {message}")
-
-class EmailAlert:
-    def update(self, message):
-        print(f"[Email] {message}")
-
-class AppNotification:
-    def update(self, message):
-        print(f"[App]   {message}")
+    def place_order(self, order_id: str, product: str, amount: float, location: str) -> None:
+        event = OrderEvent(order_id=order_id, product=product, amount=amount, location=location)
+        self._orders.append(event)
+        print(f"\n[ORDER TRACKER] New order → {event}\n")
+        self._notifier.notify_all(event)
 
 
-# Usage
+class FinanceDepartment(IObserver):
+    def __init__(self):
+        self._total_revenue = 0.0
 
-account = MoMoAccount()
-account.register(SMSAlert())
-account.register(EmailAlert())
-account.register(AppNotification())
+    def update(self, event: OrderEvent) -> None:
+        self._total_revenue += event.amount
+        print(f"  [Finance Dashboard]     Order #{event.order_id} | "
+              f"Amount: UGX {event.amount:,.0f} | "
+              f"Total Revenue: UGX {self._total_revenue:,.0f}")
 
-account.deposit(200000)
-account.withdraw(50000)
+
+class ProcurementDepartment(IObserver):
+    def __init__(self):
+        self._inventory_log: List[str] = []
+
+    def update(self, event: OrderEvent) -> None:
+        self._inventory_log.append(event.product)
+        units_moved = self._inventory_log.count(event.product)
+        print(f"  [Procurement Dashboard] Order #{event.order_id} | "
+              f"Product: {event.product} | "
+              f"Total units moved: {units_moved}")
+
+
+class MarketingDepartment(IObserver):
+    def __init__(self):
+        self._location_counts: dict = {}
+
+    def update(self, event: OrderEvent) -> None:
+        self._location_counts[event.location] = self._location_counts.get(event.location, 0) + 1
+        top_area = max(self._location_counts, key=self._location_counts.get)
+        print(f"  [Marketing Dashboard]   Order #{event.order_id} | "
+              f"Area: {event.location} | "
+              f"Top performing area: {top_area}")
+
+
+if __name__ == "__main__":
+    notifier = NotificationManager()
+
+    notifier.register(FinanceDepartment())
+    notifier.register(ProcurementDepartment())
+    notifier.register(MarketingDepartment())
+
+    tracker = OrderTracker(notifier)
+
+    tracker.place_order("ORD-001", product="Rice (50kg)",  amount=120_000, location="Kampala")
+    tracker.place_order("ORD-002", product="Maize Flour",  amount=85_000,  location="Gulu")
+    tracker.place_order("ORD-003", product="Rice (50kg)",  amount=120_000, location="Kampala")
+    tracker.place_order("ORD-004", product="Cooking Oil",  amount=200_000, location="Mbarara")
+    tracker.place_order("ORD-005", product="Sugar (2kg)",  amount=45_000,  location="Gulu")
