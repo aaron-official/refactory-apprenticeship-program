@@ -6,63 +6,59 @@
 # It lets the algorithm vary independently from clients that use it.
 #
 # Key Concepts:
-#   1. Strategy: The interface/base class for all algorithms.
-#   2. Concrete Strategies: Individual implementations of the algorithms.
-#   3. Context: The object that uses a Strategy.
-#
-# Real-world use cases:
-#   - Discount logic in e-commerce (Standard, VIP, Seasonal)
-#   - Payment processing (Credit Card, PayPal, Crypto)
-#   - Sorting algorithms (QuickSort, MergeSort)
+#   1. Strategies: Individual implementations of the algorithms (Mobile Money, Card, Cash).
+#   2. Context: The class (PaymentContext) that maintains a reference to a Strategy 
+#      and delegates execution to it.
 # ============================================================
 
-from abc import ABC, abstractmethod
+# ── 1. Define the Strategies ───────────────────────────────
 
-# ── 1. The Strategy Interface ───────────────────────────────
-class PaymentStrategy(ABC):
-    """
-    Abstract Base Class (ABC) ensuring all strategies implement 
-    the pay method.
-    """
-    @abstractmethod
+class MobileMoneyPayment:
     def pay(self, amount):
-        pass
+        print(f"Paid {amount} via Mobile Money")
 
-# ── 2. Concrete Strategies ──────────────────────────────────
-
-class CreditCardPayment(PaymentStrategy):
+class CardPayment:
     def pay(self, amount):
-        print(f"Paid ${amount} using Credit Card.")
+        print(f"Paid {amount} via Card")
 
-class PayPalPayment(PaymentStrategy):
+class CashPayment:
     def pay(self, amount):
-        print(f"Paid ${amount} using PayPal.")
+        # Note: Fixed the typo in the original image where CashPayment 
+        # printed "via Mobile Money"
+        print(f"Paid {amount} via Cash")
 
-class CryptoPayment(PaymentStrategy):
-    def pay(self, amount):
-        print(f"Paid ${amount} using Bitcoin.")
+# ── 2. The Context Class ────────────────────────────────────
 
-# ── 3. The Context ──────────────────────────────────────────
-
-class ShoppingCart:
+class PaymentContext:
     """
-    The Context maintains a reference to a Strategy object 
-    and delegates the work to it.
+    Context class that uses a strategy. 
+    It can be configured with a strategy and even switch it at runtime.
     """
-    def __init__(self, amount):
-        self.amount = amount
+    def __init__(self, strategy):
+        self.strategy = strategy
 
-    def checkout(self, strategy: PaymentStrategy):
-        # The Context doesn't care HOW the payment happens,
-        # it just tells the strategy to 'pay'.
-        strategy.pay(self.amount)
+    def set_strategy(self, strategy):
+        """Allows switching the payment logic at runtime."""
+        self.strategy = strategy
+
+    def execute_payment(self, amount):
+        """Delegates the actual payment work to the strategy."""
+        self.strategy.pay(amount)
 
 
-# ── Usage ───────────────────────────────────────────────────
+# ── 3. Usage ───────────────────────────────────────────────
 
-cart = ShoppingCart(100)
+# Initialize context with a specific strategy (Mobile Money)
+payment = PaymentContext(MobileMoneyPayment())
+payment.execute_payment(50000)
+# Output: Paid 50000 via Mobile Money
 
-# We can easily swap the algorithm (strategy) at runtime:
-cart.checkout(CreditCardPayment()) # Output: Paid $100 using Credit Card.
-cart.checkout(PayPalPayment())     # Output: Paid $100 using PayPal.
-cart.checkout(CryptoPayment())     # Output: Paid $100 using Bitcoin.
+# Switch strategy at runtime to Card
+payment.set_strategy(CardPayment())
+payment.execute_payment(50000)
+# Output: Paid 50000 via Card
+
+# Switch strategy at runtime to Cash
+payment.set_strategy(CashPayment())
+payment.execute_payment(50000)
+# Output: Paid 50000 via Cash
