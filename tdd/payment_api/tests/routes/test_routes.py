@@ -1,14 +1,9 @@
-"""
-Task 4 + Task 5 — Route tests.
-Service is ALWAYS mocked. We only test HTTP behaviour here.
-Business rules are already covered in Task 2.
-"""
 import pytest
 from unittest.mock import MagicMock, patch
 from httpx import AsyncClient, ASGITransport
 
 
-# ─── Fixtures ─────────────────────────────────────────────────────────────────
+#  Fixtures 
 
 @pytest.fixture
 def mock_service():
@@ -25,7 +20,7 @@ async def client(mock_service):
             yield ac, mock_service
 
 
-# ─── POST /customers ──────────────────────────────────────────────────────────
+#  POST /customers 
 
 async def test_post_customers_returns_201_and_customer_on_valid_input(client):
     ac, svc = client
@@ -55,7 +50,7 @@ async def test_post_customers_service_not_called_on_invalid_input(client):
     svc.create_customer.assert_not_called()
 
 
-# ─── POST /payments ───────────────────────────────────────────────────────────
+#  POST /payments 
 
 async def test_post_payments_returns_201_and_pending_payment(client):
     ac, svc = client
@@ -94,7 +89,7 @@ async def test_post_payments_returns_500_when_service_throws_unexpectedly(client
     assert response.json() == {"error": "Something went wrong"}
 
 
-# ─── POST /payments/:id/capture ───────────────────────────────────────────────
+#  POST /payments/:id/capture 
 
 async def test_capture_returns_200_and_updated_payment(client):
     ac, svc = client
@@ -118,7 +113,7 @@ async def test_capture_returns_409_when_payment_cannot_be_captured(client):
     assert response.status_code == 409
 
 
-# ─── POST /refunds ────────────────────────────────────────────────────────────
+#  POST /refunds 
 
 async def test_post_refunds_returns_201_and_refund_object(client):
     ac, svc = client
@@ -147,7 +142,7 @@ async def test_post_refunds_returns_422_when_refund_exceeds_payment(client):
     assert response.status_code == 422
 
 
-# ─── GET /payments ────────────────────────────────────────────────────────────
+#  GET /payments 
 
 async def test_get_payments_returns_200_and_list(client):
     ac, svc = client
@@ -165,7 +160,7 @@ async def test_get_payments_returns_500_when_service_throws(client):
     assert response.json() == {"error": "Something went wrong"}
 
 
-# ─── Task 5: Boundary tests ───────────────────────────────────────────────────
+#  Task 5: Boundary tests 
 
 async def test_post_payments_amount_1_is_minimum_boundary_accepted(client):
     ac, svc = client
@@ -232,7 +227,7 @@ async def test_post_customers_name_101_chars_is_rejected(client):
     assert response.status_code == 400
 
 
-# ─── Task 5: 404 tests ───────────────────────────────────────────────────────
+#  Task 5: 404 tests 
 
 async def test_get_customer_by_unknown_id_returns_404(client):
     ac, svc = client
@@ -282,7 +277,7 @@ async def test_get_refund_by_unknown_id_returns_404(client):
     assert response.json() == {"error": "Refund not found"}
 
 
-# ─── Task 5: Input variation tests ────────────────────────────────────────────
+#  Task 5: Input variation tests 
 
 async def test_post_payments_no_body_returns_400(client):
     ac, svc = client
@@ -318,7 +313,7 @@ async def test_post_customers_duplicate_email_returns_409(client):
     assert response.status_code == 409
 
 
-# ─── Task 5: 500 tests ───────────────────────────────────────────────────────
+#  Task 5: 500 tests 
 
 async def test_get_payments_service_throws_returns_500_generic_message(client):
     ac, svc = client

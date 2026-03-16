@@ -1,4 +1,3 @@
-"""app/routes/customers.py"""
 import logging
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse

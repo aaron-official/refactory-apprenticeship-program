@@ -19,7 +19,7 @@ class PaymentService:
     def __init__(self, repo):
         self.repo = repo
 
-    # ── Public API ─────────────────────────────────────────────────────────────
+    #  Public API 
 
     def create_customer(self, name: str, email: str) -> dict:
         self._validate_name(name)
@@ -79,7 +79,7 @@ class PaymentService:
     def get_payments_for_customer(self, customer_id: str) -> list[dict]:
         return self.repo.find_payments_by_customer(customer_id)
 
-    # ── Private helpers ────────────────────────────────────────────────────────
+    #  Private helpers 
 
     def _validate_name(self, name: str):
         if not name or not name.strip() or len(name) > 100:

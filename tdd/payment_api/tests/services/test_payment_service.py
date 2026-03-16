@@ -1,7 +1,3 @@
-"""
-Task 2 — Full TDD Cycle: PaymentService
-Tests written BEFORE implementation. Inject FakeRepository — no real DB.
-"""
 import pytest
 from unittest.mock import MagicMock
 from app.services.payment_service import PaymentService
@@ -20,7 +16,7 @@ def service(repo):
     return PaymentService(repo)
 
 
-# ── createCustomer ─────────────────────────────────────────────────────────────
+#  createCustomer  
 
 def test_create_customer_returns_customer_with_correct_name_and_email(service):
     customer = service.create_customer("Alice", "alice@example.com")
@@ -49,7 +45,7 @@ def test_create_customer_raises_when_email_already_registered(service):
         service.create_customer("Alice2", "alice@example.com")
 
 
-# ── createPayment ──────────────────────────────────────────────────────────────
+#  createPayment
 
 def test_create_payment_returns_payment_with_status_pending(service):
     customer = service.create_customer("Alice", "alice@example.com")
@@ -92,7 +88,7 @@ def test_create_payment_raises_when_currency_is_not_3_chars(service):
         service.create_payment(customer["id"], 1000, "us")
 
 
-# ── capture ────────────────────────────────────────────────────────────────────
+#  capture
 
 def test_capture_changes_payment_status_to_succeeded(service):
     customer = service.create_customer("Alice", "alice@example.com")
@@ -122,7 +118,7 @@ def test_capture_raises_when_payment_is_failed(service):
         service.capture(payment["id"])
 
 
-# ── fail ───────────────────────────────────────────────────────────────────────
+#  fail
 
 def test_fail_changes_payment_status_to_failed(service):
     customer = service.create_customer("Alice", "alice@example.com")
@@ -131,7 +127,7 @@ def test_fail_changes_payment_status_to_failed(service):
     assert result["status"] == "failed"
 
 
-# ── refund ─────────────────────────────────────────────────────────────────────
+#  refund
 
 def test_refund_raises_when_payment_not_found(service):
     with pytest.raises(ValueError, match="Payment not found"):

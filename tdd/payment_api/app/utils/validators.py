@@ -1,7 +1,3 @@
-"""
-app/utils/validators.py
-Pure validation helpers — no side effects, no dependencies.
-"""
 import uuid
 
 
@@ -28,4 +24,8 @@ def validate_email(email) -> bool:
 
 def generate_id(prefix: str) -> str:
     """Return a prefixed unique string e.g. 'pay_a1b2c3d4'."""
-    return f"{prefix}_{uuid.uuid4().hex[:8]}"
+    unique_part = uuid.uuid4().hex
+    return f"{prefix}_{unique_part[:8]}"
+
+
+print(generate_id("pay"))

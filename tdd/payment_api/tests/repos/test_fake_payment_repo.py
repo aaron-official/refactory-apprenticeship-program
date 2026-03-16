@@ -1,6 +1,3 @@
-"""
-Task 3 — FakeRepository tests, Stub test, and Spy test.
-"""
 import pytest
 import logging
 from unittest.mock import MagicMock, patch
@@ -15,7 +12,7 @@ def repo():
     return r
 
 
-# ── FakeRepository tests ───────────────────────────────────────────────────────
+#  FakeRepository tests 
 
 def test_save_customer_stores_and_retrieves_by_id(repo):
     customer = {"id": "cus_1", "name": "Alice", "email": "alice@example.com"}
@@ -67,7 +64,7 @@ def test_clear_empties_all_stored_data(repo):
     assert repo.find_payment_by_id("pay_1") is None
 
 
-# ── Stub test ─────────────────────────────────────────────────────────────────
+#  Stub test  
 # Stub the repo to return a specific payment — no real FakeRepo needed.
 
 def test_capture_sets_status_to_succeeded_using_stub():
@@ -84,7 +81,7 @@ def test_capture_sets_status_to_succeeded_using_stub():
     stub_repo.save_payment.assert_called_once()
 
 
-# ── Spy test ──────────────────────────────────────────────────────────────────
+#  Spy test   
 # Spy on logger.warning to verify audit logging on payment failure.
 
 def test_fail_calls_logger_warning_with_payment_id(repo):

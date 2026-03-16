@@ -1,8 +1,3 @@
-"""
-app/repos/fake_payment_repo.py
-In-memory repository used in all service and repo tests.
-Real app would swap this for a DB-backed repo via the same interface.
-"""
 
 
 class FakePaymentRepo:
@@ -16,7 +11,7 @@ class FakePaymentRepo:
         self._payments.clear()
         self._refunds.clear()
 
-    # ── Customers ──────────────────────────────────────────────────────────────
+    #  Customers 
 
     def save_customer(self, customer: dict) -> dict:
         self._customers[customer["id"]] = customer
@@ -30,7 +25,7 @@ class FakePaymentRepo:
             (c for c in self._customers.values() if c["email"] == email), None
         )
 
-    # ── Payments ───────────────────────────────────────────────────────────────
+    #  Payments 
 
     def save_payment(self, payment: dict) -> dict:
         self._payments[payment["id"]] = payment
@@ -42,7 +37,7 @@ class FakePaymentRepo:
     def find_payments_by_customer(self, customer_id: str) -> list[dict]:
         return [p for p in self._payments.values() if p["customerId"] == customer_id]
 
-    # ── Refunds ────────────────────────────────────────────────────────────────
+    #  Refunds 
 
     def save_refund(self, refund: dict) -> dict:
         self._refunds[refund["id"]] = refund

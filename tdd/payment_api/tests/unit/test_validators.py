@@ -1,7 +1,3 @@
-"""
-Task 1 — Unit Testing Fundamentals
-Write tests BEFORE implementation. All tests should fail (RED) initially.
-"""
 import pytest
 from app.utils.validators import (
     validate_amount,
@@ -11,7 +7,7 @@ from app.utils.validators import (
 )
 
 
-# ── validateAmount ─────────────────────────────────────────────────────────────
+#  validateAmount
 
 def test_validate_amount_returns_true_for_100():
     assert validate_amount(100) is True
@@ -41,7 +37,7 @@ def test_validate_amount_returns_false_for_string():
     assert validate_amount("100") is False
 
 
-# ── validateCurrency ───────────────────────────────────────────────────────────
+#  validateCurrency
 
 def test_validate_currency_returns_true_for_usd():
     assert validate_currency("usd") is True
@@ -59,7 +55,7 @@ def test_validate_currency_returns_false_for_empty_string():
     assert validate_currency("") is False
 
 
-# ── validateEmail ──────────────────────────────────────────────────────────────
+#  validateEmail
 
 def test_validate_email_returns_true_for_valid_email():
     assert validate_email("alice@example.com") is True
@@ -73,7 +69,7 @@ def test_validate_email_returns_false_for_empty_string():
     assert validate_email("") is False
 
 
-# ── generateId ────────────────────────────────────────────────────────────────
+#  generateId
 
 def test_generate_id_returns_string_starting_with_prefix():
     result = generate_id("pay")
