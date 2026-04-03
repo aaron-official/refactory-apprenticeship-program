@@ -1,6 +1,6 @@
 # Project Implementation & BDD Scenarios
 
-This document outlines the BDD scenarios for the identified web applications. The full implementation, including feature files, step definitions, and live Playwright automated tests, can be found in the repository link below:
+This document outlines the BDD scenarios for the identified web applications. The full implementation, including feature files, step definitions, and some live Playwright automated tests, can be found in the repository link below:
 
 **GitHub Repository:** [https://github.com/aaron-official/refactory-apprenticeship-program/tree/main/BDD](https://github.com/aaron-official/refactory-apprenticeship-program/tree/main/BDD)
 
