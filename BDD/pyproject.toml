@@ -9,4 +9,6 @@ dependencies = [
     "pip>=26.0.1",
     "playwright>=1.58.0",
     "playwright-stealth>=2.0.2",
+    "pytest>=8.4.2",
+    "pytest-bdd>=8.1.0",
 ]
