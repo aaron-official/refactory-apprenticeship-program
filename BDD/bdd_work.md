@@ -1,3 +1,11 @@
+# Project Implementation & BDD Scenarios
+
+This document outlines the BDD scenarios for the identified web applications. The full implementation, including feature files, step definitions, and live Playwright automated tests, can be found in the repository link below:
+
+**GitHub Repository:** [https://github.com/aaron-official/refactory-apprenticeship-program/tree/main/BDD](https://github.com/aaron-official/refactory-apprenticeship-program/tree/main/BDD)
+
+---
+
 # broHOSTS (Media Streaming Platform)
 
 ## 1. Cinematic Discovery & Search
@@ -8,7 +16,7 @@
   - **Then** the movie posters should scale up on hover to provide visual feedback
 - **Scenario 2: Finding a Title via Live Search**
   - **Given** the user has opened the search interface
-  - **When** the user types "Batman" into the search field
+  - **When** the user types "300" into the search field
   - **Then** a grid of matching movie and TV posters should populate the screen instantly
 
 ## 2. TV Show Navigation & Episode Management
